@@ -1,298 +1,192 @@
-"""
-Universal Logging System - Python Flask Backend API
-Provides REST endpoints for managing initiatives and logs
-"""
-
-from flask import Flask, jsonify, request
-from flask_cors import CORS
-from datetime import datetime
-import json
 import os
+import json
+import csv
+import io
+from datetime import datetime
+from flask import Flask, request, jsonify, send_file, Response
+from flask_cors import CORS
+from werkzeug.exceptions import HTTPException
 
-# Initialize Flask application
 app = Flask(__name__)
-CORS(app)  # Enable CORS for frontend communication
+# Enable CORS for all roots and all origins
+CORS(app, resources={r"/api/*": {"origins": "*"}}, supports_credentials=True)
 
-# Data file paths
-INITIATIVES_FILE = 'initiatives.json'
-LOGS_FILE = 'logs.json'
+# ===============================
+# CONFIG
+# ===============================
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+LOGS_FILE = os.path.join(BASE_DIR, "logs.json")
 
-# Initialize data files
-def initialize_data():
-    """Initialize data files if they don't exist"""
-    if not os.path.exists(INITIATIVES_FILE):
-        with open(INITIATIVES_FILE, 'w') as f:
-            json.dump([], f)
+API_KEY = "uls_demo_key_12345"
+API_HEADER = "X-API-KEY"
+
+# ===============================
+# ERROR HANDLERS (JSON ONLY)
+# ===============================
+@app.errorhandler(Exception)
+def handle_exception(e):
+    """Handle all exceptions and return JSON instead of HTML."""
+    if isinstance(e, HTTPException):
+        return jsonify({
+            "status": "error",
+            "message": e.description
+        }), e.code
+    return jsonify({
+        "status": "error",
+        "message": "Internal Server Error"
+    }), 500
+
+@app.errorhandler(404)
+def resource_not_found(e):
+    return jsonify({
+        "status": "error", 
+        "message": "The requested URL was not found on the server."
+    }), 404
+
+# ===============================
+# HELPERS
+# ===============================
+def ensure_logs_file():
+    """Create logs.json if it doesn't exist."""
     if not os.path.exists(LOGS_FILE):
-        with open(LOGS_FILE, 'w') as f:
+        with open(LOGS_FILE, "w") as f:
             json.dump([], f)
 
-# Load initiatives from file
-def load_initiatives():
-    """Load initiatives from JSON file"""
-    try:
-        with open(INITIATIVES_FILE, 'r') as f:
-            return json.load(f)
-    except (FileNotFoundError, json.JSONDecodeError):
-        return []
-
-# Save initiatives to file
-def save_initiatives(initiatives):
-    """Save initiatives to JSON file"""
-    with open(INITIATIVES_FILE, 'w') as f:
-        json.dump(initiatives, f, indent=2)
-
-# Load logs from file
 def load_logs():
-    """Load logs from JSON file"""
+    """Load logs from file safely."""
+    ensure_logs_file()
     try:
-        with open(LOGS_FILE, 'r') as f:
-            return json.load(f)
-    except (FileNotFoundError, json.JSONDecodeError):
+        with open(LOGS_FILE, "r") as f:
+            data = json.load(f)
+            return data if isinstance(data, list) else []
+    except (json.JSONDecodeError, IOError):
         return []
 
-# Save logs to file
 def save_logs(logs):
-    """Save logs to JSON file"""
-    with open(LOGS_FILE, 'w') as f:
-        json.dump(logs, f, indent=2)
+    """Save logs to file safely."""
+    try:
+        with open(LOGS_FILE, "w") as f:
+            json.dump(logs, f, indent=2)
+    except IOError:
+        pass
 
-# ============================================================================
-# REST API Endpoints
-# ============================================================================
+def validate_api_key():
+    """Check if X-API-KEY header matches the expected value."""
+    key = request.headers.get(API_HEADER)
+    if key != API_KEY:
+        return False
+    return True
 
-@app.route('/api/initiatives', methods=['GET'])
-def get_initiatives():
-    """
-    GET /api/initiatives
-    Fetch all initiatives
-    Returns: JSON array of initiatives
-    """
-    initiatives = load_initiatives()
+# ===============================
+# ROUTES
+# ===============================
+
+@app.route("/api/health", methods=["GET"])
+def health():
+    """Health check endpoint (no API key required)."""
     return jsonify({
-        'status': 'success',
-        'initiatives': initiatives,
-        'count': len(initiatives)
-    }), 200
+        "status": "success",
+        "message": "API running"
+    })
 
-@app.route('/api/initiatives', methods=['POST'])
-def create_initiative():
-    """
-    POST /api/initiatives
-    Create a new initiative
-    Body: { 'category': str, 'name': str, 'problem': str }
-    Returns: JSON of created initiative
-    """
-    data = request.get_json()
-    
-    # Validate request
-    if not data or not all(key in data for key in ['category', 'name', 'problem']):
-        return jsonify({
-            'status': 'error',
-            'message': 'Missing required fields: category, name, problem'
-        }), 400
-    
-    # Create new initiative
-    initiatives = load_initiatives()
-    new_initiative = {
-        'id': len(initiatives),
-        'category': data['category'],
-        'name': data['name'],
-        'problem': data['problem'],
-        'created_at': datetime.now().isoformat()
-    }
-    
-    initiatives.append(new_initiative)
-    save_initiatives(initiatives)
-    
-    # Log the action
-    log_event(f'Initiative created: {data["name"]}', 'INFO', 'API')
-    
-    return jsonify({
-        'status': 'success',
-        'initiative': new_initiative
-    }), 201
-
-@app.route('/api/initiatives/<int:initiative_id>', methods=['DELETE'])
-def delete_initiative(initiative_id):
-    """
-    DELETE /api/initiatives/<id>
-    Delete an initiative by index
-    Returns: JSON response
-    """
-    initiatives = load_initiatives()
-    
-    if initiative_id < 0 or initiative_id >= len(initiatives):
-        return jsonify({
-            'status': 'error',
-            'message': 'Initiative not found'
-        }), 404
-    
-    deleted = initiatives.pop(initiative_id)
-    save_initiatives(initiatives)
-    
-    # Log the action
-    log_event(f'Initiative deleted: {deleted["name"]}', 'INFO', 'API')
-    
-    return jsonify({
-        'status': 'success',
-        'message': 'Initiative deleted successfully',
-        'deleted': deleted
-    }), 200
-
-@app.route('/api/logs', methods=['GET'])
+@app.route("/api/logs", methods=["GET"])
 def get_logs():
-    """
-    GET /api/logs
-    Fetch all logs
-    Optional query parameter: ?limit=n (default 100)
-    Returns: JSON array of logs
-    """
-    limit = request.args.get('limit', 100, type=int)
+    """Retrieve all logs (requires API key)."""
+    if not validate_api_key():
+        return jsonify({"status": "error", "message": "Invalid API key"}), 401
+
     logs = load_logs()
     
-    # Return latest logs (limit to specified count)
+    # Optional sorting: latest logs first
+    try:
+        logs.sort(key=lambda x: x.get('timestamp', ''), reverse=True)
+    except Exception:
+        pass
+
     return jsonify({
-        'status': 'success',
-        'logs': logs[-limit:] if logs else [],
-        'count': len(logs)
+        "status": "success",
+        "logs": logs,
+        "results": logs,  # For frontend compatibility
+        "count": len(logs)
     }), 200
 
-@app.route('/api/logs', methods=['POST'])
-def add_log():
-    """
-    POST /api/logs
-    Add a new log entry (typically called by Java service)
-    Body: { 'level': str, 'message': str, 'source': str }
-    Returns: JSON of created log
-    """
-    data = request.get_json()
+@app.route("/api/logs", methods=["POST"])
+def submit_log():
+    """Add a new log entry (requires API key)."""
+    if not validate_api_key():
+        return jsonify({"status": "error", "message": "Invalid API key"}), 401
+
+    data = request.get_json(silent=True) or {}
     
-    # Validate request
-    if not data or 'message' not in data:
-        return jsonify({
-            'status': 'error',
-            'message': 'Missing required field: message'
-        }), 400
-    
-    # Create log entry
+    # Map both frontend schemas to the stored schema
     log_entry = {
-        'timestamp': datetime.now().isoformat(),
-        'level': data.get('level', 'INFO'),
-        'message': data.get('message', ''),
-        'source': data.get('source', 'Unknown')
+        "timestamp": data.get("timestamp") or datetime.now().isoformat(),
+        "service": data.get("service") or data.get("service_name") or "Unknown",
+        "level": data.get("level") or data.get("log_level") or "INFO",
+        "message": data.get("message", ""),
+        "server": data.get("server") or data.get("server_id") or "Server-1",
+        "trace_id": data.get("trace_id", "")
     }
-    
-    # Add to logs file
+
     logs = load_logs()
     logs.append(log_entry)
     save_logs(logs)
-    
+
     return jsonify({
-        'status': 'success',
-        'log': log_entry
+        "status": "success",
+        "message": "Log saved",
+        "log": log_entry
     }), 201
 
-@app.route('/api/logs/clear', methods=['POST'])
+# -------- CSV EXPORT ROUTES --------
+@app.route("/api/logs/export", methods=["GET"])
+@app.route("/api/logs/export-csv", methods=["GET"])
+@app.route("/api/logs/export/csv", methods=["GET"])
+@app.route("/api/logs/csv", methods=["GET"])
+def export_logs():
+    """Export all logs to a CSV file (requires API key)."""
+    if not validate_api_key():
+        return jsonify({"status": "error", "message": "Invalid API key"}), 401
+
+    logs = load_logs()
+    
+    output = io.StringIO()
+    writer = csv.DictWriter(
+        output, 
+        fieldnames=["timestamp", "service", "level", "message", "server", "trace_id"]
+    )
+    writer.writeheader()
+    writer.writerows(logs)
+    
+    output.seek(0)
+    return Response(
+        output.getvalue(),
+        mimetype="text/csv",
+        headers={"Content-disposition": "attachment; filename=logs.csv"}
+    )
+
+@app.route("/api/logs/clear", methods=["POST"])
 def clear_logs():
-    """
-    POST /api/logs/clear
-    Clear all logs
-    Returns: JSON response
-    """
+    """Clear all stored logs (requires API key)."""
+    if not validate_api_key():
+        return jsonify({"status": "error", "message": "Invalid API key"}), 401
+
     save_logs([])
     return jsonify({
-        'status': 'success',
-        'message': 'All logs cleared'
+        "status": "success", 
+        "message": "Logs cleared"
     }), 200
 
-@app.route('/api/health', methods=['GET'])
-def health_check():
-    """
-    GET /api/health
-    Health check endpoint
-    Returns: JSON with API status
-    """
-    return jsonify({
-        'status': 'success',
-        'message': 'Universal Logging System API is running',
-        'timestamp': datetime.now().isoformat()
-    }), 200
-
-# ============================================================================
-# Helper functions
-# ============================================================================
-
-def log_event(message, level='INFO', source='System'):
-    """
-    Helper function to log events internally
-    
-    Args:
-        message (str): Log message
-        level (str): Log level (INFO, WARNING, ERROR)
-        source (str): Source of the log
-    """
-    logs = load_logs()
-    log_entry = {
-        'timestamp': datetime.now().isoformat(),
-        'level': level,
-        'message': message,
-        'source': source
-    }
-    logs.append(log_entry)
-    save_logs(logs)
-
-# ============================================================================
-# Application Bootstrap
-# ============================================================================
-
-if __name__ == '__main__':
-    # Initialize data files
-    initialize_data()
-    
-    # Add sample data if file is empty
-    initiatives = load_initiatives()
-    if len(initiatives) == 0:
-        sample_initiatives = [
-            {
-                'id': 0,
-                'category': 'Improve Efficiency',
-                'name': 'Universal Logging System (UI + API)',
-                'problem': 'Logs are scattered across servers and databases, making debugging difficult.',
-                'created_at': datetime.now().isoformat()
-            },
-            {
-                'id': 1,
-                'category': 'Security Enhancement',
-                'name': 'Centralized Authentication',
-                'problem': 'Multiple authentication systems across different services create security risks.',
-                'created_at': datetime.now().isoformat()
-            },
-            {
-                'id': 2,
-                'category': 'Infrastructure',
-                'name': 'Cloud Migration',
-                'problem': 'Current on-premise infrastructure is costly and hard to maintain.',
-                'created_at': datetime.now().isoformat()
-            }
-        ]
-        save_initiatives(sample_initiatives)
-    
-    # Log startup
-    log_event('Universal Logging System API started', 'INFO', 'System')
-    
-    # Start Flask application
-    print("=" * 70)
-    print("Universal Logging System - Python Flask Backend")
-    print("=" * 70)
-    print("API Server running on: http://localhost:5000")
-    print("Available endpoints:")
-    print("  GET    /api/initiatives       - Get all initiatives")
-    print("  POST   /api/initiatives       - Create new initiative")
-    print("  DELETE /api/initiatives/<id>  - Delete initiative")
-    print("  GET    /api/logs              - Get all logs")
-    print("  POST   /api/logs              - Add log entry")
-    print("  GET    /api/health            - Health check")
-    print("=" * 70)
-    
-    app.run(debug=True, host='0.0.0.0', port=5000)
+# ===============================
+# START SERVER
+# ===============================
+if __name__ == "__main__":
+    ensure_logs_file()
+    print("====================================")
+    print("  Universal Logging System Backend  ")
+    print("====================================")
+    print("API URL : http://localhost:5000")
+    print("API KEY :", API_KEY)
+    print("====================================")
+    # Host 0.0.0.0 is critical for accessibility in some environments
+    app.run(host="0.0.0.0", port=5000, debug=True)

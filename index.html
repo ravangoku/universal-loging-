@@ -1,95 +1,120 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
+
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Universal Logging System - Dashboard</title>
-    <link rel="stylesheet" href="styles.css">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Universal Logging System</title>
+  <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
-    <div class="container">
-        <!-- Header -->
-        <header class="header">
-            <h1 class="title">📊 Universal Logging System</h1>
-            <p class="subtitle">Enterprise Initiative Management Dashboard</p>
-        </header>
-
-        <!-- Add Initiative Section -->
-        <section class="add-initiative-section">
-            <h2>Add New Initiative</h2>
-            <form id="initiativeForm" class="form-container">
-                <div class="form-group">
-                    <label for="category">Category:</label>
-                    <input type="text" id="category" required placeholder="e.g., Improve Efficiency">
-                </div>
-                
-                <div class="form-group">
-                    <label for="name">Initiative Name:</label>
-                    <input type="text" id="name" required placeholder="e.g., Universal Logging System">
-                </div>
-                
-                <div class="form-group">
-                    <label for="problem">Problem Statement:</label>
-                    <textarea id="problem" required placeholder="Describe the problem..."></textarea>
-                </div>
-                
-                <button type="submit" class="btn-submit">Add Initiative</button>
-            </form>
-        </section>
-
-        <!-- Statistics Section -->
-        <section class="stats-section">
-            <div class="stat-card">
-                <h3 id="totalCount">0</h3>
-                <p>Total Initiatives</p>
-            </div>
-            <div class="stat-card">
-                <h3 id="logsCount">0</h3>
-                <p>Logs Processed</p>
-            </div>
-            <div class="stat-card">
-                <h3 id="statusOK">Active</h3>
-                <p>System Status</p>
-            </div>
-        </section>
-
-        <!-- Initiatives Table Section -->
-        <section class="table-section">
-            <h2>Initiatives Overview</h2>
-            <div class="table-wrapper">
-                <table class="initiatives-table">
-                    <thead>
-                        <tr>
-                            <th>Category</th>
-                            <th>Initiative Name</th>
-                            <th>Problem Statement</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody id="initiativeTableBody">
-                        <!-- Dynamically populated by JavaScript -->
-                        <tr class="empty-state">
-                            <td colspan="4">Loading initiatives...</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-        </section>
-
-        <!-- Logs Section -->
-        <section class="logs-section">
-            <h2>Recent Logs</h2>
-            <div class="logs-container" id="logsContainer">
-                <div class="log-entry">Connecting to logging service...</div>
-            </div>
-        </section>
-
-        <!-- Footer -->
-        <footer class="footer">
-            <p>&copy; 2026 Universal Logging System. Enterprise-grade initiative management.</p>
-        </footer>
+  <div class="page">
+    <div class="header">
+      <div class="header-content">
+        <h1>📊 Universal Logging System</h1>
+        <p class="header-subtitle">Centralized log management and monitoring</p>
+      </div>
     </div>
 
-    <script src="script.js"></script>
+    <div class="container">
+      <div class="dashboard">
+        <section class="card">
+          <h2>Submit Log Entry</h2>
+          <div class="form-grid">
+            <div class="form-group">
+              <label for="serviceInput">Service Name</label>
+              <input id="serviceInput" type="text" placeholder="e.g., payment-service" />
+            </div>
+            <div class="form-group">
+              <label for="levelInput">Log Level</label>
+              <select id="levelInput">
+                <option value="INFO">INFO</option>
+                <option value="WARN">WARN</option>
+                <option value="ERROR">ERROR</option>
+                <option value="DEBUG">DEBUG</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="serverIdInput">Server ID</label>
+              <input id="serverIdInput" type="text" placeholder="e.g., server-01" />
+            </div>
+            <div class="form-group">
+              <label for="traceIdInput">Trace ID (optional)</label>
+              <input id="traceIdInput" type="text" placeholder="correlation-id" />
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="messageInput">Message</label>
+            <textarea id="messageInput" placeholder="Enter log message..." rows="3"></textarea>
+          </div>
+          <div class="button-group">
+            <button id="submitBtn" class="btn btn-primary">Submit Log</button>
+          </div>
+        </section>
+
+        <section class="card">
+          <h2>Search & Filter</h2>
+          <div class="filter-grid">
+            <div class="form-group">
+              <label for="searchInput">Search</label>
+              <input id="searchInput" type="text" placeholder="Search message or service..." />
+            </div>
+            <div class="form-group">
+              <label for="levelFilter">Log Level</label>
+              <select id="levelFilter">
+                <option value="">All levels</option>
+                <option value="INFO">INFO</option>
+                <option value="WARN">WARN</option>
+                <option value="ERROR">ERROR</option>
+                <option value="DEBUG">DEBUG</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="serviceFilter">Service</label>
+              <input id="serviceFilter" type="text" placeholder="Filter by service..." />
+            </div>
+            <div class="form-group">
+              <label for="startDate">Start Date</label>
+              <input id="startDate" type="date" />
+            </div>
+            <div class="form-group">
+              <label for="endDate">End Date</label>
+              <input id="endDate" type="date" />
+            </div>
+          </div>
+        </section>
+
+        <section class="card">
+          <h2>Log Entries</h2>
+          <div class="status" id="apiStatus"></div>
+          <div class="table-wrapper">
+            <table id="logsTable">
+              <thead>
+                <tr>
+                  <th>Timestamp</th>
+                  <th>Service</th>
+                  <th>Message</th>
+                  <th>Level</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+          <div class="button-group" style="margin-top: 1.5rem; display: flex; gap: 1rem;">
+            <button id="refreshBtn" class="btn btn-secondary">Refresh Logs</button>
+            <button id="exportBtn" class="btn btn-secondary">Export CSV</button>
+          </div>
+        </section>
+      </div>
+    </div>
+  </div>
+
+  <footer class="footer">
+    <p>&copy; 2026 Universal Logging System. All rights reserved.</p>
+  </footer>
+
+  <script src="script.js"></script>
 </body>
+
 </html>
