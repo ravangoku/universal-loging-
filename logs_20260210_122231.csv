@@ -1,0 +1,21 @@
+timestamp,service,level,message,server,trace_id
+2026-02-10T09:00:01,AuthService,INFO,Application started,Server-1,TRX001
+2026-02-10T09:02:15,AuthService,INFO,User login successful,Server-1,TRX002
+2026-02-10T09:05:40,AuthService,WARNING,Invalid password attempt,Server-1,TRX003
+2026-02-10T09:08:10,UserService,INFO,New user account created,Server-2,TRX004
+2026-02-10T09:10:55,DatabaseService,INFO,Database connection established,Server-2,TRX005
+2026-02-10T09:13:21,DatabaseService,WARNING,Slow query detected,Server-2,TRX006
+2026-02-10T09:15:47,PaymentService,INFO,Payment initiated,Server-3,TRX007
+2026-02-10T09:16:05,PaymentService,INFO,Payment completed successfully,Server-3,TRX008
+2026-02-10T09:18:44,PaymentService,ERROR,Payment gateway timeout,Server-3,TRX009
+2026-02-10T09:21:30,NotificationService,INFO,Email notification sent,Server-4,TRX010
+2026-02-10T09:24:12,NotificationService,ERROR,SMS delivery failed,Server-4,TRX011
+2026-02-10T09:27:58,SystemMonitor,WARNING,CPU usage exceeded 80%,Server-5,TRX012
+2026-02-10T09:30:10,SystemMonitor,INFO,Memory usage normal,Server-5,TRX013
+2026-02-10T09:33:49,FileService,INFO,File uploaded successfully,Server-2,TRX014
+2026-02-10T09:36:22,FileService,WARNING,File size exceeds limit,Server-2,TRX015
+2026-02-10T09:38:57,SecurityService,WARNING,Suspicious login detected,Server-6,TRX016
+2026-02-10T09:40:31,SecurityService,ERROR,IP address blocked,Server-6,TRX017
+2026-02-10T09:43:18,CacheService,INFO,Cache cleared successfully,Server-3,TRX018
+2026-02-10T09:46:05,CacheService,WARNING,Cache miss rate increased,Server-3,TRX019
+2026-02-10T09:50:00,SchedulerService,INFO,Daily backup completed,Server-7,TRX020
